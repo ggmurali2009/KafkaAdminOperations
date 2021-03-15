@@ -1,19 +1,28 @@
 package com.admin.demo.services;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.admin.demo.entities.AdminClientConfiguration;
+import com.admin.demo.entities.BrokerInfo;
+import com.admin.demo.entities.CreateTopicInfo;
+import com.admin.demo.entities.KafkaTopicInfo;
+import com.admin.demo.entities.PartitionInfo;
 import com.admin.demo.entities.TopicResponse;
+import com.admin.demo.entities.Topics;
 import com.admin.demo.enums.ResponseMessage;
 import com.admin.demo.enums.Status;
 
@@ -22,33 +31,106 @@ public class KafkaService {
 
 	@Autowired
 	Logger logger;
-	
+
 	@Autowired
 	TopicResponse topicResponse;
+
+	@Autowired
+	AdminClientConfiguration adminClientConfiguration;
+
+	@Autowired
+	List<Topics> topicLists;
 
 	/*-
 	  Deletes a topic 
 	  Accepts : TopicName as String , AdminClient Object 
 	  Returns : Void
 	 */
-	public void deleteTopics(List<String> topicsForDeletion, AdminClient adminclient)
+	public TopicResponse deleteTopics(Topics topicsForDeletion, AdminClient adminClient)
 			throws InterruptedException, ExecutionException {
 
 		logger.info("Inside <deleteTopics> in kafkaService");
 
-		adminclient.deleteTopics(topicsForDeletion).all().get();
+		adminClient.deleteTopics(Arrays.asList(topicsForDeletion.getTopicName())).all().get();
+
+		/*- verifying whether the requested topic has been created in the cluster or not? */
+		if (!isTopicExists(adminClient, topicsForDeletion.getTopicName())) {
+			return buildResponse(topicsForDeletion.getTopicName(), Status.SUCCESS, ResponseMessage.TOPIC_DELETED,
+					ResponseMessage.TOPIC_DELETED);
+
+		} else {
+			return buildResponse(topicsForDeletion.getTopicName(), Status.FAILURE, ResponseMessage.TOPIC_NOT_DELETED,
+					ResponseMessage.TOPIC_NOT_DELETED);
+
+		}
 
 	}
 
 	/*-
-	  Creates a topic 
-	  Accepts : Topic list with topic Informations , AdminClient Object 
-	  Returns : CreateTopicsResult
+	  Bulk Deleted the topics 
+	  Accepts : TopicName as String , AdminClient Object 
+	  Returns : Void
 	 */
-	public void createTopics(Collection<NewTopic> topicsForcreation, AdminClient adminclient) throws InterruptedException, ExecutionException {
+	public List<TopicResponse> deleteMoreTopics(List<Topics> topicsForDeletion, AdminClient adminClient)
+			throws InterruptedException, ExecutionException {
+
+		logger.info("Inside <deleteTopics> in kafkaService");
+
+		List<TopicResponse> topicResponse = new ArrayList<>();
+
+		for (Topics topics : topicsForDeletion) {
+			topicResponse.add(deleteTopics(topics, adminClient));
+
+		}
+		return topicResponse;
+
+	}
+
+	/*- Creates a topic Accepts : Topic list with topic Informations ,
+	 * AdminClient Object Returns : CreateTopicsResult
+	 */
+	public TopicResponse createTopics(CreateTopicInfo createTopicInfo, AdminClient adminclient)
+			throws InterruptedException, ExecutionException {
 		logger.info("Inside <createTopics> Method in <KafkaService>");
-			adminclient.createTopics(topicsForcreation).all().get();
-		
+
+		/* creating new adminClient with provided bootstrap-server information */
+		adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
+		adminclient = adminClientConfiguration.getAdminClient();
+
+		adminclient
+				.createTopics(
+						Arrays.asList(new NewTopic(createTopicInfo.getTopicName(), createTopicInfo.getPartitions(),
+								createTopicInfo.getReplicationFactor()).configs(createTopicInfo.getTopicConfig())))
+				.all().get();
+
+		if (isTopicExists(adminclient, createTopicInfo.getTopicName())) {
+			return buildResponse(createTopicInfo.getTopicName(), Status.SUCCESS, ResponseMessage.TOPIC_CREATED,
+					ResponseMessage.TOPIC_CREATED);
+		} else {
+			return buildResponse(createTopicInfo.getTopicName(), Status.FAILURE, ResponseMessage.TOPIC_NOT_CREATED,
+					ResponseMessage.TOPIC_NOT_CREATED);
+		}
+
+	}
+
+	/*- Creates a topic Accepts : Topic list with topic Informations ,
+	 * AdminClient Object Returns : CreateTopicsResult
+	 */
+	public List<TopicResponse> createMoreTopics(List<CreateTopicInfo> listOfTopicsForCreation, AdminClient adminClient)
+			throws InterruptedException, ExecutionException {
+		logger.info("Inside <createTopics> Method in <KafkaService>");
+
+		List<TopicResponse> topicResponseList = new ArrayList<>();
+
+		/* Creating New topics in KAFKA */
+		for (CreateTopicInfo createTopicInfo : listOfTopicsForCreation) {
+
+			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
+			adminClient = adminClientConfiguration.getAdminClient();
+
+			topicResponseList.add(createTopics(createTopicInfo, adminClient));
+		}
+		return topicResponseList;
 	}
 
 	/*-
@@ -56,10 +138,73 @@ public class KafkaService {
 	  Accepts : AdminClient Object 
 	  Returns : List of topic name as String
 	 */
-	public Set<String> getListTopics(AdminClient adminclient) throws InterruptedException, ExecutionException {
+	public List<Topics> getListTopics(AdminClient adminclient) throws InterruptedException, ExecutionException {
 
-		return adminclient.listTopics().names().get();
+		topicLists.clear();
+		adminclient.listTopics().names().get().forEach(topic -> {
+			topicLists.add(new Topics(topic));
+		});
 
+		return topicLists;
+
+	}
+
+	/*-
+	  Describe a topic 
+	  Accepts : AdminClient Object , Topic Names
+	  Returns : Topic Description
+	 */
+
+	public KafkaTopicInfo describeTopics(AdminClient adminclient, Collection<String> topicName)
+			throws InterruptedException, ExecutionException {
+
+		Map<String, TopicDescription> m = adminclient.describeTopics(topicName).all().get();
+
+		KafkaTopicInfo kafkaTopicInfo = null;
+		PartitionInfo partitionInfo = null;
+		BrokerInfo brokerInfo = null;
+
+		List<PartitionInfo> paritionInfoList = new ArrayList<>();
+		List<BrokerInfo> replicaBrokerInfo = new ArrayList<>();
+		List<BrokerInfo> isrBrokerInfo = new ArrayList<>();
+
+		for (Map.Entry<String, TopicDescription> entry : m.entrySet()) {
+
+			/* Assigning Topic Information */
+			kafkaTopicInfo = new KafkaTopicInfo();
+			kafkaTopicInfo.setTopicName(entry.getKey());
+			/* Getting Partition Information */
+			paritionInfoList = new ArrayList<PartitionInfo>();
+			for (TopicPartitionInfo i : entry.getValue().partitions()) {
+				partitionInfo = new PartitionInfo();
+				/* Assigning Partition Number */
+				partitionInfo.setPartition(i.partition());
+				/* Assigning Partition Leader Information */
+				brokerInfo = new BrokerInfo();
+				brokerInfo.setBrokerId(i.leader().id());
+				partitionInfo.setPartitionLeader(brokerInfo);
+				/* Replica Broker Information */
+				replicaBrokerInfo = new ArrayList<>();
+				for (Node n : i.replicas()) {
+					brokerInfo = new BrokerInfo();
+					brokerInfo.setBrokerId(n.id());
+					replicaBrokerInfo.add(brokerInfo);
+
+				}
+				partitionInfo.setReplicas(replicaBrokerInfo);
+				/* ISR Broker Information */
+				isrBrokerInfo = new ArrayList<>();
+				for (Node n : i.isr()) {
+					brokerInfo = new BrokerInfo();
+					brokerInfo.setBrokerId(n.id());
+					isrBrokerInfo.add(brokerInfo);
+				}
+				partitionInfo.setIsr(isrBrokerInfo);
+				paritionInfoList.add(partitionInfo);
+			}
+			kafkaTopicInfo.setPartition(paritionInfoList);
+		}
+		return kafkaTopicInfo;
 	}
 
 	/*-
@@ -68,31 +213,94 @@ public class KafkaService {
 	  Returns : Topic Description
 	 */
 
-	public Map<String, TopicDescription> describeTopics(AdminClient adminclient, Collection<String> topicName)
+	public List<KafkaTopicInfo> describeAllTopics(AdminClient adminclient, List<Topics> topicName)
 			throws InterruptedException, ExecutionException {
-		return adminclient.describeTopics(topicName).all().get();
+
+		Map<String, TopicDescription> m = adminclient.describeTopics(adminclient.listTopics().names().get()).all()
+				.get();
+
+		KafkaTopicInfo kafkaTopicInfo;
+		PartitionInfo partitionInfo;
+		BrokerInfo brokerInfo;
+
+		List<KafkaTopicInfo> kafkaTopicInfoList = new ArrayList<>();
+		List<PartitionInfo> paritionInfoList = new ArrayList<>();
+		List<BrokerInfo> replicaBrokerInfo = new ArrayList<>();
+		List<BrokerInfo> isrBrokerInfo = new ArrayList<>();
+
+		for (Map.Entry<String, TopicDescription> entry : m.entrySet()) {
+
+			/* Assigning Topic Information */
+			kafkaTopicInfo = new KafkaTopicInfo();
+			kafkaTopicInfo.setTopicName(entry.getKey());
+			/* Getting Partition Information */
+			paritionInfoList = new ArrayList<PartitionInfo>();
+			for (TopicPartitionInfo i : entry.getValue().partitions()) {
+				partitionInfo = new PartitionInfo();
+				/* Assigning Partition Number */
+				partitionInfo.setPartition(i.partition());
+				/* Assigning Partition Leader Information */
+				brokerInfo = new BrokerInfo();
+				brokerInfo.setBrokerId(i.leader().id());
+				partitionInfo.setPartitionLeader(brokerInfo);
+				/* Replica Broker Information */
+				replicaBrokerInfo = new ArrayList<>();
+				for (Node n : i.replicas()) {
+					brokerInfo = new BrokerInfo();
+					brokerInfo.setBrokerId(n.id());
+					replicaBrokerInfo.add(brokerInfo);
+				}
+				partitionInfo.setReplicas(replicaBrokerInfo);
+				/* ISR Broker Information */
+				isrBrokerInfo = new ArrayList<>();
+				for (Node n : i.isr()) {
+					brokerInfo = new BrokerInfo();
+					brokerInfo.setBrokerId(n.id());
+					isrBrokerInfo.add(brokerInfo);
+				}
+				partitionInfo.setIsr(isrBrokerInfo);
+				paritionInfoList.add(partitionInfo);
+			}
+			kafkaTopicInfo.setPartition(paritionInfoList);
+			kafkaTopicInfoList.add(kafkaTopicInfo);
+		}
+		return kafkaTopicInfoList;
 	}
+
+	/*-
+	  Checking whether the topic exists in KAFKA cluster 
+	  Accepts : AdminClient Object , Topic Names
+	  Returns : boolean
+	 */
 
 	public boolean isTopicExists(AdminClient adminClient, String topicName)
 			throws InterruptedException, ExecutionException {
 
 		logger.info("Inside <isTopicExists> in <KafkaService>");
-		
-		if (getListTopics(adminClient).contains(topicName)) {
+
+		if (adminClient.listTopics().names().get().contains(topicName)) {
 			return true;
 		} else {
 			return false;
 		}
 
 	}
-	
-	public TopicResponse buildResponse(String topicName,Status status,String responseMessage,String detailedMessage) {
-		
+
+	/*-
+	  constructing TopicResponce
+	  Accepts : Topic Names,Status,Message
+	  Returns : TopicResponse
+	 */
+
+	public TopicResponse buildResponse(String topicName, Status status, String responseMessage,
+			String detailedMessage) {
+
+		topicResponse = new TopicResponse();
 		topicResponse.setTopic(topicName);
 		topicResponse.setStatus(status);
 		topicResponse.setMessage(responseMessage);
 		topicResponse.setDetailedMessage(detailedMessage);
-		
+
 		return topicResponse;
 	}
 
