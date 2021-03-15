@@ -86,10 +86,12 @@ public class KafkaService {
 
 	}
 	
-	public TopicResponse buildResponse(Status status,String responseMessage) {
+	public TopicResponse buildResponse(String topicName,Status status,String responseMessage,String detailedMessage) {
 		
+		topicResponse.setTopic(topicName);
 		topicResponse.setStatus(status);
 		topicResponse.setMessage(responseMessage);
+		topicResponse.setDetailedMessage(detailedMessage);
 		
 		return topicResponse;
 	}

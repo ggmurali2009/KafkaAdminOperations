@@ -35,13 +35,13 @@ import com.admin.demo.services.KafkaService;
 
 /*-
  * 
- * 
  * Rest end points available:
- * 			/create -
- *          /createmore -   
- * 
- * 
- * 
+ * 			/create 
+ *          /createmore 
+ *          /listtopics
+ *          /describe
+ *          /describeall
+ *          /delete
  * 
  */
 
@@ -79,6 +79,7 @@ public class TopicController {
 
 		logger.info("Inside <createTopic> method in <controller> - START");
 
+		/* creating new adminClient with provided bootstrap-server information */
 		adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
 		adminClient = adminClientConfiguration.getAdminClient();
 
@@ -89,67 +90,21 @@ public class TopicController {
 				adminClient);
 
 		logger.info("Inside <createTopic> method in <controller> - END");
-		return kafkaService.buildResponse(Status.SUCCESS, ResponseMessage.TOPIC_CREATED);
-	}
-
-	@PostMapping(value = "/createmore", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-	public List<String> createMoreTopic(@RequestBody List<CreateTopicInfo> listOfTopicsForCreation)
-			throws InterruptedException, ExecutionException {
-
-		logger.info("Inside <createMoreTopic> method in <controller>");
-
-		List<String> returnString = new ArrayList<String>();
-		List<CreateTopicInfo> validTopics = new ArrayList<>();
-
-		/* Checking the given topic name is already exists in the KAFKA cluster */
-		for (CreateTopicInfo createTopicInfo : listOfTopicsForCreation) {
-
-			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
-			adminClient = adminClientConfiguration.getAdminClient();
-
-			if (kafkaService.getListTopics(adminClient).contains(createTopicInfo.getTopicName())) {
-				returnString.add("TOPIC ALREADY EXISTS." + createTopicInfo.getTopicName().toString());
-
-			} else {
-				validTopics.add(createTopicInfo);
-			}
+		if (kafkaService.isTopicExists(adminClient, createTopicInfo.getTopicName())) {
+			return kafkaService.buildResponse(createTopicInfo.getTopicName(), Status.SUCCESS,
+					ResponseMessage.TOPIC_CREATED, ResponseMessage.TOPIC_CREATED);
+		} else {
+			return kafkaService.buildResponse(createTopicInfo.getTopicName(), Status.FAILURE,
+					ResponseMessage.TOPIC_NOT_CREATED, ResponseMessage.TOPIC_NOT_CREATED);
 		}
 
-		/* Creating New topics in KAFKA */
-		for (CreateTopicInfo createTopicInfo : validTopics) {
-			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
-			adminClient = adminClientConfiguration.getAdminClient();
-			kafkaService.createTopics(
-					Arrays.asList(new NewTopic(createTopicInfo.getTopicName(), createTopicInfo.getPartitions(),
-							createTopicInfo.getReplicationFactor()).configs(createTopicInfo.getTopicConfig())),
-					adminClient);
-		}
-
-		/*
-		 * verifying whether the requested topic has been created in the cluster or not?
-		 */
-
-		for (CreateTopicInfo createTopicInfo : validTopics) {
-			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
-			adminClient = adminClientConfiguration.getAdminClient();
-			if (kafkaService.getListTopics(adminClient).contains(createTopicInfo.getTopicName())) {
-				returnString.add(("Topic Created Successfully." + createTopicInfo.getTopicName().toString()));
-
-			} else {
-				createTopicInfo.getTopicName().toString();
-				System.out.println(kafkaService.getListTopics(adminClient));
-				System.out.println(kafkaService.getListTopics(adminClient));
-				returnString.add(
-						"Topic Not Created.Check the configurations. " + createTopicInfo.getTopicName().toString());
-			}
-		}
-		return returnString;
 	}
 
 	/* listing all the topics in the KAFKA cluster */
 	@GetMapping(value = "/listtopics", produces = MediaType.APPLICATION_JSON_VALUE)
 	public List<Topics> listAllTopics() throws InterruptedException, ExecutionException {
 
+		logger.info("Inside <listAllTopics> method in <controller> - END");
 		topicLists.clear();
 		kafkaService.getListTopics(adminClient).forEach(topic -> {
 			topicLists.add(new Topics(topic));
@@ -158,6 +113,28 @@ public class TopicController {
 
 	}
 
+	/* deletes the topic provided */
+	@DeleteMapping(value = "/delete", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public TopicResponse deleteTopic(@RequestBody Topics topicsForDeletion)
+			throws InterruptedException, ExecutionException {
+
+		/* Calling kafkaService to delete particular Topic */
+		kafkaService.deleteTopics(Arrays.asList(topicsForDeletion.getTopicName()), adminClient);
+
+		/*- verifying whether the requested topic has been created in the cluster or not? */
+		if (!kafkaService.isTopicExists(adminClient, topicsForDeletion.getTopicName())) {
+			return kafkaService.buildResponse(topicsForDeletion.getTopicName(), Status.SUCCESS,
+					ResponseMessage.TOPIC_DELETED, ResponseMessage.TOPIC_DELETED);
+
+		} else {
+			return kafkaService.buildResponse(topicsForDeletion.getTopicName(), Status.FAILURE,
+					ResponseMessage.TOPIC_NOT_DELETED, ResponseMessage.TOPIC_NOT_DELETED);
+
+		}
+
+	}
+	
+	/*Describe a particular Topic*/
 	@GetMapping(value = "/describe", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public KafkaTopicInfo describe(@RequestBody Topics topic) throws InterruptedException, ExecutionException {
 
@@ -165,13 +142,13 @@ public class TopicController {
 
 		Map<String, TopicDescription> m = kafkaService.describeTopics(adminClient, Arrays.asList(topic.getTopicName()));
 
-		KafkaTopicInfo kafkaTopicInfo = null;
-		PartitionInfo partitionInfo = null;
-		BrokerInfo brokerInfo = null;
+		KafkaTopicInfo kafkaTopicInfo=null;
+		PartitionInfo partitionInfo=null;
+		BrokerInfo brokerInfo=null;
 
-		List<PartitionInfo> paritionInfoList = null;
-		List<BrokerInfo> replicaBrokerInfo = null;
-		List<BrokerInfo> isrBrokerInfo = null;
+		List<PartitionInfo> paritionInfoList = new ArrayList<>();
+		List<BrokerInfo> replicaBrokerInfo = new ArrayList<>();;
+		List<BrokerInfo> isrBrokerInfo = new ArrayList<>();;
 
 		for (Map.Entry<String, TopicDescription> entry : m.entrySet()) {
 
@@ -226,6 +203,63 @@ public class TopicController {
 		return kafkaTopicInfo;
 
 	}
+	
+	/* Bulk creation of New topics into KAFKA cluster */
+	@PostMapping(value = "/createmore", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+	public List<String> createMoreTopic(@RequestBody List<CreateTopicInfo> listOfTopicsForCreation)
+			throws InterruptedException, ExecutionException {
+
+		logger.info("Inside <createMoreTopic> method in <controller>");
+
+		List<String> returnString = new ArrayList<String>();
+		List<CreateTopicInfo> validTopics = new ArrayList<>();
+
+		/* Checking the given topic name is already exists in the KAFKA cluster */
+		for (CreateTopicInfo createTopicInfo : listOfTopicsForCreation) {
+
+			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
+			adminClient = adminClientConfiguration.getAdminClient();
+
+			if (kafkaService.getListTopics(adminClient).contains(createTopicInfo.getTopicName())) {
+				returnString.add("TOPIC ALREADY EXISTS." + createTopicInfo.getTopicName().toString());
+
+			} else {
+				validTopics.add(createTopicInfo);
+			}
+		}
+
+		/* Creating New topics in KAFKA */
+		for (CreateTopicInfo createTopicInfo : validTopics) {
+			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
+			adminClient = adminClientConfiguration.getAdminClient();
+			kafkaService.createTopics(
+					Arrays.asList(new NewTopic(createTopicInfo.getTopicName(), createTopicInfo.getPartitions(),
+							createTopicInfo.getReplicationFactor()).configs(createTopicInfo.getTopicConfig())),
+					adminClient);
+		}
+
+		/*
+		 * verifying whether the requested topic has been created in the cluster or not?
+		 */
+
+		for (CreateTopicInfo createTopicInfo : validTopics) {
+			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
+			adminClient = adminClientConfiguration.getAdminClient();
+			if (kafkaService.getListTopics(adminClient).contains(createTopicInfo.getTopicName())) {
+				returnString.add(("Topic Created Successfully." + createTopicInfo.getTopicName().toString()));
+
+			} else {
+				createTopicInfo.getTopicName().toString();
+				System.out.println(kafkaService.getListTopics(adminClient));
+				System.out.println(kafkaService.getListTopics(adminClient));
+				returnString.add(
+						"Topic Not Created.Check the configurations. " + createTopicInfo.getTopicName().toString());
+			}
+		}
+		return returnString;
+	}
+
+
 
 	@GetMapping(value = "/describeall", produces = MediaType.APPLICATION_JSON_VALUE)
 	public List<KafkaTopicInfo> describeTopics() throws InterruptedException, ExecutionException {
@@ -298,27 +332,6 @@ public class TopicController {
 		}
 		logger.info("Inside <describeTopics> method of <Controller> - End");
 		return kafkaTopicInfoList;
-
-	}
-
-	/* deletes the topic */
-	@DeleteMapping(value = "/delete", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public String deleteTopic(@RequestBody Topics topicsForDeletion) throws InterruptedException, ExecutionException {
-
-		/* Calling kafkaService to delete particular Topic */
-
-		kafkaService.deleteTopics(Arrays.asList(topicsForDeletion.getTopicName()), adminClient);
-
-		/*
-		 * verifying whether the requested topic has been created in the cluster or not
-		 */
-		if (!kafkaService.getListTopics(adminClient).contains(topicsForDeletion.getTopicName())) {
-			return "Topic Deleted Successfully." + topicsForDeletion.getTopicName();
-
-		} else {
-			return "Topic Not Deleted. " + createTopicInfo.getTopicName().toString();
-
-		}
 
 	}
 

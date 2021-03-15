@@ -3,9 +3,21 @@ package com.admin.demo.entities;
 import com.admin.demo.enums.Status;
 
 public class TopicResponse {
+	
+	private String topic;
 	private Status status;
 	private String message;
 	private String detailedMessage;
+
+	
+	
+	public String getTopic() {
+		return topic;
+	}
+
+	public void setTopic(String topic) {
+		this.topic = topic;
+	}
 
 	public String getMessage() {
 		return message;
