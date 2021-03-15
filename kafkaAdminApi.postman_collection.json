@@ -1,0 +1,240 @@
+{
+	"info": {
+		"_postman_id": "215beec0-ff31-401b-a866-24d909537791",
+		"name": "kafkaAdminApi",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "localhost:8080/v1/topic",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"bootstrapServer\": \"localhost:9092\",\n    \"topicName\": \"qwe_2\",\n    \"partitions\": 1,\n    \"replicationFactor\": 3,\n    \"topicConfig\": {\n        \"cleanup.policy\": \"delete\",\n        \"segment.bytes\": \"1024000000\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/v1/topic/",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"v1",
+						"topic",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/v1/topics/",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/topic/listtopics/",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"topic",
+						"listtopics",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/v1/topic",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\"topicName\":\"xyz_103\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/v1/topic",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"v1",
+						"topic"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/v1/describe/{topicName}",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"topicName\": \"test_4\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/topic/describe/",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"topic",
+						"describe",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/v1/topics/",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n\n        \"topicName\": \"qwe_101\",\n        \"partitions\": 2,\n        \"replicationFactor\": 2,\n        \"topicConfig\": {\n            \"cleanup.policy\": \"compact\",\n            \"segment.bytes\": \"1024000000\"\n        }\n    },\n    {\n        \"topicName\": \"qwe_102\",\n        \"partitions\": 9,\n        \"replicationFactor\": 3,\n        \"topicConfig\": {\n            \"cleanup.policy\": \"delete\",\n            \"segment.bytes\": \"1024000000\"\n        }\n    },\n    {\n        \"topicName\": \"qwe_103\",\n        \"partitions\": 5,\n        \"replicationFactor\": 3,\n        \"topicConfig\": {\n            \"cleanup.policy\": \"delete\",\n            \"segment.bytes\": \"1024000000\"\n        }\n    }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/v1/topics/",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"v1",
+						"topics",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/v1/topics/",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n    {\n        \"topicName\": \"xyz_100\"\n    },\n    {\n        \"topicName\": \"xyz_102\"\n    },\n    {\n        \"topicName\": \"xyz_101\"\n    }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/v1/topics/",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"v1",
+						"topics",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/v1/describeall/",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/v1/describeall/",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"v1",
+						"describeall",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
