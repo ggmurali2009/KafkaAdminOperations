@@ -1,8 +1,5 @@
 package com.admin.demo.entities;
 
-import org.springframework.stereotype.Component;
-
-@Component
 public class Topics {
 
 	private String topicName;

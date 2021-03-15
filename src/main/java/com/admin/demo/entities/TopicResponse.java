@@ -9,8 +9,6 @@ public class TopicResponse {
 	private String message;
 	private String detailedMessage;
 
-	
-	
 	public String getTopic() {
 		return topic;
 	}

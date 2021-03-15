@@ -1,42 +1,24 @@
 package com.admin.demo.entities;
 
+import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-@Component
 public class CreateTopicInfo {
 
-	private String bootstrapServer;
 	private String topicName;
 	private int partitions;
 	private short replicationFactor;
-	@Autowired
-	private Map<String, String> topicConfig;
+	private Map<String, String> topicConfig = new HashMap<>();
 
 	public CreateTopicInfo() {
-		super();
 	}
 
 	public CreateTopicInfo(String topicName, int partitions, short replicationFactor, Map<String, String> topicConfig) {
-		super();
 		this.topicName = topicName;
 		this.partitions = partitions;
 		this.replicationFactor = replicationFactor;
 		this.topicConfig = topicConfig;
 	}
-
-	
-	
-	public String getBootstrapServer() {
-		return bootstrapServer;
-	}
-
-	public void setBootstrapServer(String bootstrapServer) {
-		this.bootstrapServer = bootstrapServer;
-	}
-
 	public String getTopicName() {
 		return topicName;
 	}
@@ -44,8 +26,6 @@ public class CreateTopicInfo {
 	public void setTopicName(String topicName) {
 		this.topicName = topicName;
 	}
-	
-	
 
 	public int getPartitions() {
 		return partitions;

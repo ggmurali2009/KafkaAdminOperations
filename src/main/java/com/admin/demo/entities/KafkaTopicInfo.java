@@ -1,24 +1,18 @@
 package com.admin.demo.entities;
 
+import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-@Component
 public class KafkaTopicInfo {
 
 	private String topicName;
-	
-	@Autowired
-	private List<PartitionInfo> partition;
+
+	private List<PartitionInfo> partition = new ArrayList<>();
 
 	public KafkaTopicInfo() {
-		super();
 	}
 
 	public KafkaTopicInfo(String topicName, List<PartitionInfo> partition) {
-		super();
 		this.topicName = topicName;
 		this.partition = partition;
 	}
@@ -43,10 +37,4 @@ public class KafkaTopicInfo {
 	public String toString() {
 		return "KafkaTopicInfo [topicName=" + topicName + ", partition=" + partition + "]";
 	}
-	
-	
-	
-	
-
-
 }

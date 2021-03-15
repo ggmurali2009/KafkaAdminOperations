@@ -2,25 +2,17 @@ package com.admin.demo.entities;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-@Component
 public class PartitionInfo {
 	private int partition;
-	
-	@Autowired
+
 	private BrokerInfo partitionLeader;
-	
 	private List<BrokerInfo> replicas;
 	private List<BrokerInfo> Isr;
-	
+
 	public PartitionInfo() {
-		super();
 	}
 
 	public PartitionInfo(int partition, BrokerInfo partitionLeader, List<BrokerInfo> replicas, List<BrokerInfo> isr) {
-		super();
 		this.partition = partition;
 		this.partitionLeader = partitionLeader;
 		this.replicas = replicas;
@@ -64,6 +56,5 @@ public class PartitionInfo {
 		return "PartitionInfo [partition=" + partition + ", partitionLeader=" + partitionLeader + ", replicas="
 				+ replicas + ", Isr=" + Isr + "]";
 	}
-	
-	
+
 }

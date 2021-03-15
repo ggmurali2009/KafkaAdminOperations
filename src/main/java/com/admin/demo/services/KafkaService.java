@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.admin.demo.entities.AdminClientConfiguration;
+import com.admin.demo.configurations.ConfigurationService;
 import com.admin.demo.entities.BrokerInfo;
 import com.admin.demo.entities.CreateTopicInfo;
 import com.admin.demo.entities.KafkaTopicInfo;
@@ -33,37 +33,28 @@ public class KafkaService {
 	Logger logger;
 
 	@Autowired
-	TopicResponse topicResponse;
+	ConfigurationService configurationService;
 
-	@Autowired
-	AdminClientConfiguration adminClientConfiguration;
-
-	@Autowired
-	List<Topics> topicLists;
+	/*
+	 * @Autowired AdminClientConfiguration adminClientConfiguration;
+	 */
 
 	/*-
 	  Deletes a topic 
 	  Accepts : TopicName as String , AdminClient Object 
 	  Returns : Void
 	 */
-	public TopicResponse deleteTopics(Topics topicsForDeletion, AdminClient adminClient)
-			throws InterruptedException, ExecutionException {
+	public TopicResponse deleteTopics(Topics topicsForDeletion) throws InterruptedException, ExecutionException {
 
 		logger.info("Inside <deleteTopics> in kafkaService");
 
+		AdminClient adminClient = configurationService.getAdminClient();
+
 		adminClient.deleteTopics(Arrays.asList(topicsForDeletion.getTopicName())).all().get();
 
-		/*- verifying whether the requested topic has been created in the cluster or not? */
-		if (!isTopicExists(adminClient, topicsForDeletion.getTopicName())) {
-			return buildResponse(topicsForDeletion.getTopicName(), Status.SUCCESS, ResponseMessage.TOPIC_DELETED,
-					ResponseMessage.TOPIC_DELETED);
-
-		} else {
-			return buildResponse(topicsForDeletion.getTopicName(), Status.FAILURE, ResponseMessage.TOPIC_NOT_DELETED,
-					ResponseMessage.TOPIC_NOT_DELETED);
-
-		}
-
+		adminClient.close();
+		return buildResponse(topicsForDeletion.getTopicName(), Status.SUCCESS, ResponseMessage.TOPIC_DELETED,
+				ResponseMessage.TOPIC_DELETED);
 	}
 
 	/*-
@@ -71,7 +62,7 @@ public class KafkaService {
 	  Accepts : TopicName as String , AdminClient Object 
 	  Returns : Void
 	 */
-	public List<TopicResponse> deleteMoreTopics(List<Topics> topicsForDeletion, AdminClient adminClient)
+	public List<TopicResponse> deleteMoreTopics(List<Topics> topicsForDeletion)
 			throws InterruptedException, ExecutionException {
 
 		logger.info("Inside <deleteTopics> in kafkaService");
@@ -79,44 +70,36 @@ public class KafkaService {
 		List<TopicResponse> topicResponse = new ArrayList<>();
 
 		for (Topics topics : topicsForDeletion) {
-			topicResponse.add(deleteTopics(topics, adminClient));
+			topicResponse.add(deleteTopics(topics));
 
 		}
 		return topicResponse;
-
 	}
 
 	/*- Creates a topic Accepts : Topic list with topic Informations ,
 	 * AdminClient Object Returns : CreateTopicsResult
 	 */
-	public TopicResponse createTopics(CreateTopicInfo createTopicInfo, AdminClient adminclient)
-			throws InterruptedException, ExecutionException {
+	public TopicResponse createTopic(CreateTopicInfo createTopicInfo) throws InterruptedException, ExecutionException {
 		logger.info("Inside <createTopics> Method in <KafkaService>");
 
-		/* creating new adminClient with provided bootstrap-server information */
-		adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
-		adminclient = adminClientConfiguration.getAdminClient();
+		AdminClient adminClient = configurationService.getAdminClient();
 
-		adminclient
+		adminClient
 				.createTopics(
 						Arrays.asList(new NewTopic(createTopicInfo.getTopicName(), createTopicInfo.getPartitions(),
 								createTopicInfo.getReplicationFactor()).configs(createTopicInfo.getTopicConfig())))
 				.all().get();
 
-		if (isTopicExists(adminclient, createTopicInfo.getTopicName())) {
-			return buildResponse(createTopicInfo.getTopicName(), Status.SUCCESS, ResponseMessage.TOPIC_CREATED,
-					ResponseMessage.TOPIC_CREATED);
-		} else {
-			return buildResponse(createTopicInfo.getTopicName(), Status.FAILURE, ResponseMessage.TOPIC_NOT_CREATED,
-					ResponseMessage.TOPIC_NOT_CREATED);
-		}
+		adminClient.close();
+		return buildResponse(createTopicInfo.getTopicName(), Status.SUCCESS, ResponseMessage.TOPIC_CREATED,
+				ResponseMessage.TOPIC_CREATED);
 
 	}
 
 	/*- Creates a topic Accepts : Topic list with topic Informations ,
 	 * AdminClient Object Returns : CreateTopicsResult
 	 */
-	public List<TopicResponse> createMoreTopics(List<CreateTopicInfo> listOfTopicsForCreation, AdminClient adminClient)
+	public List<TopicResponse> createTopics(List<CreateTopicInfo> listOfTopicsForCreation)
 			throws InterruptedException, ExecutionException {
 		logger.info("Inside <createTopics> Method in <KafkaService>");
 
@@ -124,11 +107,7 @@ public class KafkaService {
 
 		/* Creating New topics in KAFKA */
 		for (CreateTopicInfo createTopicInfo : listOfTopicsForCreation) {
-
-			adminClientConfiguration.setBootstrapServer(createTopicInfo.getBootstrapServer());
-			adminClient = adminClientConfiguration.getAdminClient();
-
-			topicResponseList.add(createTopics(createTopicInfo, adminClient));
+			topicResponseList.add(createTopic(createTopicInfo));
 		}
 		return topicResponseList;
 	}
@@ -138,13 +117,14 @@ public class KafkaService {
 	  Accepts : AdminClient Object 
 	  Returns : List of topic name as String
 	 */
-	public List<Topics> getListTopics(AdminClient adminclient) throws InterruptedException, ExecutionException {
+	public List<Topics> listTopics() throws InterruptedException, ExecutionException {
 
-		topicLists.clear();
-		adminclient.listTopics().names().get().forEach(topic -> {
+		AdminClient adminClient = configurationService.getAdminClient();
+		List<Topics> topicLists = new ArrayList<>();
+		adminClient.listTopics().names().get().forEach(topic -> {
 			topicLists.add(new Topics(topic));
 		});
-
+		adminClient.close();
 		return topicLists;
 
 	}
@@ -155,10 +135,10 @@ public class KafkaService {
 	  Returns : Topic Description
 	 */
 
-	public KafkaTopicInfo describeTopics(AdminClient adminclient, Collection<String> topicName)
-			throws InterruptedException, ExecutionException {
+	public KafkaTopicInfo describeTopics(Collection<String> topicName) throws InterruptedException, ExecutionException {
+		AdminClient adminClient = configurationService.getAdminClient();
 
-		Map<String, TopicDescription> m = adminclient.describeTopics(topicName).all().get();
+		Map<String, TopicDescription> m = adminClient.describeTopics(topicName).all().get();
 
 		KafkaTopicInfo kafkaTopicInfo = null;
 		PartitionInfo partitionInfo = null;
@@ -204,6 +184,7 @@ public class KafkaService {
 			}
 			kafkaTopicInfo.setPartition(paritionInfoList);
 		}
+		adminClient.close();
 		return kafkaTopicInfo;
 	}
 
@@ -213,10 +194,10 @@ public class KafkaService {
 	  Returns : Topic Description
 	 */
 
-	public List<KafkaTopicInfo> describeAllTopics(AdminClient adminclient, List<Topics> topicName)
+	public List<KafkaTopicInfo> describeAllTopics(List<Topics> topicName)
 			throws InterruptedException, ExecutionException {
-
-		Map<String, TopicDescription> m = adminclient.describeTopics(adminclient.listTopics().names().get()).all()
+		AdminClient adminClient = configurationService.getAdminClient();
+		Map<String, TopicDescription> m = adminClient.describeTopics(adminClient.listTopics().names().get()).all()
 				.get();
 
 		KafkaTopicInfo kafkaTopicInfo;
@@ -264,26 +245,8 @@ public class KafkaService {
 			kafkaTopicInfo.setPartition(paritionInfoList);
 			kafkaTopicInfoList.add(kafkaTopicInfo);
 		}
+		adminClient.close();
 		return kafkaTopicInfoList;
-	}
-
-	/*-
-	  Checking whether the topic exists in KAFKA cluster 
-	  Accepts : AdminClient Object , Topic Names
-	  Returns : boolean
-	 */
-
-	public boolean isTopicExists(AdminClient adminClient, String topicName)
-			throws InterruptedException, ExecutionException {
-
-		logger.info("Inside <isTopicExists> in <KafkaService>");
-
-		if (adminClient.listTopics().names().get().contains(topicName)) {
-			return true;
-		} else {
-			return false;
-		}
-
 	}
 
 	/*-
@@ -294,8 +257,7 @@ public class KafkaService {
 
 	public TopicResponse buildResponse(String topicName, Status status, String responseMessage,
 			String detailedMessage) {
-
-		topicResponse = new TopicResponse();
+		TopicResponse topicResponse = new TopicResponse();
 		topicResponse.setTopic(topicName);
 		topicResponse.setStatus(status);
 		topicResponse.setMessage(responseMessage);
