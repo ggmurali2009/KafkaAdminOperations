@@ -1,6 +1,5 @@
 {
-    "bootstrapServer": "localhost:9092",
-    "topicName": "testtopic",
+    "topicName": "testtopic_1",
     "partitions": 3,
     "replicationFactor": 3,
     "topicConfig": {

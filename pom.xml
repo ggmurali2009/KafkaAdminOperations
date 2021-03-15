@@ -48,6 +48,11 @@
 			<artifactId>spring-kafka-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.github.charithe</groupId>
+			<artifactId>kafka-junit</artifactId>
+			<version>4.1.11</version>
+		</dependency>
 	</dependencies>
 
 	<build>
