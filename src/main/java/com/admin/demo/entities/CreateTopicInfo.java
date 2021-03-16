@@ -13,6 +13,12 @@ public class CreateTopicInfo {
 	public CreateTopicInfo() {
 	}
 
+	public CreateTopicInfo(String topicName, int partitions, short replicationFactor) {
+		this.topicName = topicName;
+		this.partitions = partitions;
+		this.replicationFactor = replicationFactor;
+	}
+	
 	public CreateTopicInfo(String topicName, int partitions, short replicationFactor, Map<String, String> topicConfig) {
 		this.topicName = topicName;
 		this.partitions = partitions;

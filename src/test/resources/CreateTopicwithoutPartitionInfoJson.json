@@ -1,6 +1,6 @@
 {
-    "topicName": "TestTopicNormal_4",
-    "partitions": 3,
+    "topicName": "TestInvalidTopic",
+    "partitions": 0,
     "replicationFactor": 3,
     "topicConfig": {
         "cleanup.policy": "delete",
